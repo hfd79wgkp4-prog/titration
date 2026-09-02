@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titration Simulator</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2332;
+    --line: #2d3a4d;
+    --text: #e8eef5;
+    --muted: #8b9bb0;
+    --accent: #3d9cf0;
+    --warn: #f0a030;
+    --good: #3ecf8e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px;
+  }
+  h1 { font-size: 1.35rem; font-weight: 650; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 16px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr 280px;
+    gap: 16px;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  label { display: block; font-size: 0.78rem; color: var(--muted); margin: 10px 0 4px; }
+  select, input[type="number"] {
+    width: 100%;
+    background: #121820;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row input { flex: 1; }
+  button {
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 8px;
+    font-weight: 650;
+    cursor: pointer;
+    font-size: 0.92rem;
+  }
+  .primary { background: var(--accent); color: #041018; }
+  .secondary { background: #2a3546; color: var(--text); }
+  .danger { background: #3a2a2a; color: #ff8a8a; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .lab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 420px;
+  }
+  .burette-wrap { position: relative; height: 280px; width: 80px; }
+  .burette {
+    position: absolute;
+    left: 28px;
+    top: 0;
+    width: 24px;
+    height: 240px;
+    border: 2px solid #7a8aa0;
+    border-bottom: none;
+    background: linear-gradient(to right, rgba(255,255,255,0.06), transparent 40%);
+    border-radius: 3px 3px 0 0;
+    overflow: hidden;
+  }
+  .burette-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: #4aa3ff;
+    opacity: 0.75;
+    transition: height 0.15s linear;
+  }
+  .tip {
+    position: absolute;
+    left: 36px;
+    top: 238px;
+    width: 8px;
+    height: 18px;
+    background: #7a8aa0;
+    clip-path: polygon(0 0, 100% 0, 70% 100%, 30% 100%);
+  }
+  .flask {
+    width: 160px;
+    height: 150px;
+    margin-top: 8px;
+    position: relative;
+  }
+  .neck {
+    width: 36px;
+    height: 28px;
+    margin: 0 auto;
+    border: 2px solid #7a8aa0;
+    border-bottom: none;
+    background: rgba(255,255,255,0.04);
+  }
+  .bulb {
+    width: 140px;
+    height: 110px;
+    margin: 0 auto;
+    border: 2px solid #7a8aa0;
+    border-radius: 0 0 70px 70px;
+    position: relative;
+    overflow: hidden;
+    background: rgba(255,255,255,0.03);
+  }
+  .flask-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 55%;
+    background: #3b82c4;
+    transition: background 0.25s ease, height 0.2s ease;
+  }
+  .drop {
+    position: absolute;
+    left: 38px;
+    top: 252px;
+    width: 7px;
+    height: 10px;
+    border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+    background: #4aa3ff;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .drop.fall { animation: drip 0.45s ease-in forwards; }
+  @keyframes drip {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(70px); }
+  }
+  .readout {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.95rem;
+    color: var(--warn);
+    margin-top: 8px;
+  }
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.88rem;
+  }
+  .stat b { color: var(--warn); font-weight: 650; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #fff3; }
+  canvas {
+    width: 100%;
+    height: 180px;
+    background: #121820;
+    border-radius: 8px;
+    margin-top: 10px;
+  }
+  .hint { font-size: 0.75rem; color: var(--muted); margin-top: 10px; line-height: 1.4; }
+</style>
+</head>
+<body>
+  <div style="max-width:1180px;margin:0 auto 12px;">
+    <h1>Acid–base titration simulator</h1>
+    <p class="sub">Works offline in Chrome. Open this file — no server needed.</p>
+  </div>
+  <div class="layout">
+    <div class="panel">
+      <strong>Setup</strong>
+      <label>Analyte (in flask)</label>
+      <select id="analyte">
+        <option value="HCl">HCl (strong acid)</option>
+        <option value="CH3COOH">CH3COOH (weak acid)</option>
+        <option value="NaOH">NaOH (strong base)</option>
+        <option value="NH3">NH3 (weak base)</option>
+      </select>
+      <label>Analyte concentration (mol/L)</label>
+      <input type="number" id="cA" value="0.100" min="0.001" max="2" step="0.001">
+      <label>Analyte volume (mL)</label>
+      <input type="number" id="vA" value="25.00" min="1" max="100" step="0.1">
+      <label>Titrant (in burette)</label>
+      <select id="titrant">
+        <option value="NaOH">NaOH (strong base)</option>
+        <option value="HCl">HCl (strong acid)</option>
+        <option value="CH3COOH">CH3COOH (weak acid)</option>
+        <option value="NH3">NH3 (weak base)</option>
+      </select>
+      <label>Titrant concentration (mol/L)</label>
+      <input type="number" id="cT" value="0.100" min="0.001" max="2" step="0.001">
+      <label>Indicator</label>
+      <select id="indicator">
+        <option value="phen">Phenolphthalein (8.2–10.0)</option>
+        <option value="mo">Methyl orange (3.1–4.4)</option>
+        <option value="bcg">Bromocresol green (3.8–5.4)</option>
+        <option value="none">None (pH only)</option>
+      </select>
+      <button class="primary" id="btnReset">Reset / fill burette</button>
+    </div>
+
+    <div class="panel lab">
+      <div class="burette-wrap">
+        <div class="burette"><div class="burette-fill" id="buretteFill"></div></div>
+        <div class="tip"></div>
+        <div class="drop" id="drop"></div>
+      </div>
+      <div class="flask">
+        <div class="neck"></div>
+        <div class="bulb"><div class="flask-fill" id="flaskFill"></div></div>
+      </div>
+      <div class="readout" id="buretteRead">Burette: 0.00 mL delivered</div>
+      <div class="row" style="width:100%;margin-top:10px;">
+        <button class="secondary" id="btnDrop">+ 0.05 mL</button>
+        <button class="secondary" id="btnOne">+ 1.00 mL</button>
+      </div>
+      <label>Add custom volume (mL)</label>
+      <div class="row">
+        <input type="number" id="customVol" value="0.50" min="0.01" max="10" step="0.01">
+        <button class="secondary" id="btnCustom" style="width:auto;margin-top:0;padding:8px 12px;">Add</button>
+      </div>
+      <button class="danger" id="btnRun">Run to 50 mL (fast)</button>
+    </div>
+
+    <div class="panel">
+      <strong>Live data</strong>
+      <div class="stat">pH <b id="pH">—</b></div>
+      <div class="stat">Volume added <b id="vol">0.00 mL</b></div>
+      <div class="stat">Equivalence point <b id="eq">—</b></div>
+      <div class="stat">
+        Indicator
+        <span class="pill"><span class="dot" id="indDot"></span><b id="indName">—</b></span>
+      </div>
+      <canvas id="curve" width="520" height="180"></canvas>
+      <p class="hint">
+        Strong–strong: sharp jump near pH 7.<br>
+        Weak acid + strong base: equivalence around pH 8–9 — phenolphthalein works.<br>
+        Weak base + strong acid: equivalence around pH 5 — methyl orange is better.
+      </p>
+    </div>
+  </div>
+
+<script>
+const KW = 1e-14;
+const KA = { CH3COOH: 1.8e-5, NH3: 1.8e-5 }; // NH3 uses Kb = 1.8e-5
+const INDICATORS = {
+  phen: { name: "Phenolphthalein", lo: 8.2, hi: 10.0, acid: "#f4f0f4", base: "#ff4d8a" },
+  mo:   { name: "Methyl orange", lo: 3.1, hi: 4.4, acid: "#e23b3b", base: "#f0c040" },
+  bcg:  { name: "Bromocresol green", lo: 3.8, hi: 5.4, acid: "#f0c040", base: "#2a7de1" },
+  none: { name: "None", lo: 0, hi: 14, acid: "#3b82c4", base: "#3b82c4" }
+};
+
+const state = {
+  delivered: 0,
+  buretteCap: 50,
+  points: [],
+  running: false
+};
+
+function isAcid(name) {
+  return name === "HCl" || name === "CH3COOH";
+}
+function isStrong(name) {
+  return name === "HCl" || name === "NaOH";
+}
+
+function solveQuadratic(a, b, c) {
+  const d = Math.max(0, b*b - 4*a*c);
+  return (-b + Math.sqrt(d)) / (2*a);
+}
+
+function pHFromH(h) {
+  h = Math.min(1, Math.max(1e-15, h));
+  return -Math.log10(h);
+}
+
+function computePH(vT) {
+  const analyte = document.getElementById("analyte").value;
+  const titrant = document.getElementById("titrant").value;
+  const cA = parseFloat(document.getElementById("cA").value) || 0.1;
+  const vA = parseFloat(document.getElementById("vA").value) || 25;
+  const cT = parseFloat(document.getElementById("cT").value) || 0.1;
+  const VA = vA / 1000, VT = vT / 1000, V = VA + VT;
+  const nA = cA * VA, nT = cT * VT;
+
+  const acidInFlask = isAcid(analyte);
+  const acidInBurette = isAcid(titrant);
+
+  // moles of acid and base present
+  let nAcid = 0, nBase = 0;
+  let weakAcid = false, weakBase = false;
+
+  if (acidInFlask) { nAcid += nA; if (!isStrong(analyte)) weakAcid = true; }
+  else { nBase += nA; if (!isStrong(analyte)) weakBase = true; }
+  if (acidInBurette) { nAcid += nT; if (!isStrong(titrant)) weakAcid = true; }
+  else { nBase += nT; if (!isStrong(titrant)) weakBase = true; }
+
+  // Strong-strong or mixed: excess H+ or OH-
+  if (!weakAcid && !weakBase) {
+    const excess = nAcid - nBase;
+    if (Math.abs(excess) < 1e-12) return 7;
+    if (excess > 0) return pHFromH(excess / V);
+    return 14 + Math.log10((-excess) / V);
+  }
+
+  // Weak acid + strong base (classic)
+  if (weakAcid && !weakBase && !acidInBurette) {
+    const Ka = KA.CH3COOH;
+    const nHA0 = acidInFlask ? nA : 0;
+    const nOH = nT;
+    if (nOH <= 0) {
+      const h = solveQuadratic(1, Ka, -Ka * (nHA0 / V));
+      return pHFromH(h);
+    }
+    if (nOH < nHA0 - 1e-12) {
+      const nAminus = nOH;
+      const nHA = nHA0 - nOH;
+      return -Math.log10(Ka) + Math.log10(nAminus / nHA); // Henderson
+    }
+    if (Math.abs(nOH - nHA0) < 1e-12) {
+      const kb = KW / Ka;
+      const cb = nHA0 / V;
+      const oh = solveQuadratic(1, kb, -kb * cb);
+      return 14 + Math.log10(oh);
+    }
+    const oh = (nOH - nHA0) / V;
+    return 14 + Math.log10(oh);
+  }
+
+  // Weak base + strong acid
+  if (weakBase && !weakAcid && acidInBurette) {
+    const Kb = KA.NH3;
+    const nB0 = nA;
+    const nH = nT;
+    if (nH <= 0) {
+      const oh = solveQuadratic(1, Kb, -Kb * (nB0 / V));
+      return 14 + Math.log10(oh);
+    }
+    if (nH < nB0 - 1e-12) {
+      const nBH = nH;
+      const nB = nB0 - nH;
+      const pKb = -Math.log10(Kb);
+      return 14 - (pKb + Math.log10(nBH / nB));
+    }
+    if (Math.abs(nH - nB0) < 1e-12) {
+      const Ka = KW / Kb;
+      const h = solveQuadratic(1, Ka, -Ka * (nB0 / V));
+      return pHFromH(h);
+    }
+    return pHFromH((nH - nB0) / V);
+  }
+
+  // Fallback: treat as strong excess
+  const excess = nAcid - nBase;
+  if (Math.abs(excess) < 1e-12) return 7;
+  if (excess > 0) return pHFromH(excess / V);
+  return 14 + Math.log10((-excess) / V);
+}
+
+function eqVolume() {
+  const cA = parseFloat(document.getElementById("cA").value) || 0.1;
+  const vA = parseFloat(document.getElementById("vA").value) || 25;
+  const cT = parseFloat(document.getElementById("cT").value) || 0.1;
+  if (cT <= 0) return NaN;
+  return (cA * vA) / cT;
+}
+
+function indicatorColor(pH) {
+  const key = document.getElementById("indicator").value;
+  const ind = INDICATORS[key];
+  if (key === "none") {
+    // map pH 1–13 to blue→pink-ish water tint
+    const t = Math.min(1, Math.max(0, (pH - 1) / 12));
+    return lerpColor("#c45a3b", "#3b82c4", t);
+  }
+  if (pH <= ind.lo) return ind.acid;
+  if (pH >= ind.hi) return ind.base;
+  const t = (pH - ind.lo) / (ind.hi - ind.lo);
+  return lerpColor(ind.acid, ind.base, t);
+}
+
+function lerpColor(a, b, t) {
+  const pa = hexToRgb(a), pb = hexToRgb(b);
+  const r = Math.round(pa[0] + (pb[0] - pa[0]) * t);
+  const g = Math.round(pa[1] + (pb[1] - pa[1]) * t);
+  const bl = Math.round(pa[2] + (pb[2] - pa[2]) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+function hexToRgb(hex) {
+  hex = hex.replace("#", "");
+  if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+  return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
+}
+
+function updateUI() {
+  const pH = computePH(state.delivered);
+  const left = Math.max(0, state.buretteCap - state.delivered);
+  document.getElementById("buretteFill").style.height = (left / state.buretteCap * 100) + "%";
+  document.getElementById("buretteRead").textContent = "Burette: " + state.delivered.toFixed(2) + " mL delivered";
+  document.getElementById("pH").textContent = pH.toFixed(2);
+  document.getElementById("vol").textContent = state.delivered.toFixed(2) + " mL";
+  const eq = eqVolume();
+  document.getElementById("eq").textContent = isFinite(eq) ? eq.toFixed(2) + " mL" : "—";
+  const key = document.getElementById("indicator").value;
+  document.getElementById("indName").textContent = INDICATORS[key].name;
+  const col = indicatorColor(pH);
+  document.getElementById("indDot").style.background = col;
+  document.getElementById("flaskFill").style.background = col;
+  const vA = parseFloat(document.getElementById("vA").value) || 25;
+  const fillH = Math.min(85, 40 + (state.delivered / (vA + 50)) * 50);
+  document.getElementById("flaskFill").style.height = fillH + "%";
+  drawCurve();
+}
+
+function drawCurve() {
+  const c = document.getElementById("curve");
+  const ctx = c.getContext("2d");
+  const w = c.width, h = c.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = "#2d3a4d";
+  ctx.lineWidth = 1;
+  for (let p = 0; p <= 14; p += 2) {
+    const y = h - 16 - (p / 14) * (h - 28);
+    ctx.beginPath(); ctx.moveTo(36, y); ctx.lineTo(w - 8, y); ctx.stroke();
+    ctx.fillStyle = "#8b9bb0";
+    ctx.font = "11px sans-serif";
+    ctx.fillText(String(p), 6, y + 4);
+  }
+  const xmax = Math.max(50, state.delivered + 5);
+  if (state.points.length > 1) {
+    ctx.beginPath();
+    ctx.strokeStyle = "#3d9cf0";
+    ctx.lineWidth = 2;
+    state.points.forEach((pt, i) => {
+      const x = 36 + (pt.v / xmax) * (w - 48);
+      const y = h - 16 - (pt.pH / 14) * (h - 28);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+  const eq = eqVolume();
+  if (isFinite(eq) && eq < xmax) {
+    const x = 36 + (eq / xmax) * (w - 48);
+    ctx.strokeStyle = "#f0a030";
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(x, 8); ctx.lineTo(x, h - 16); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function dripAnim() {
+  const d = document.getElementById("drop");
+  d.classList.remove("fall");
+  void d.offsetWidth;
+  d.classList.add("fall");
+}
+
+function addVolume(dv) {
+  if (state.delivered >= state.buretteCap) return;
+  const next = Math.min(state.buretteCap, state.delivered + dv);
+  state.delivered = Math.round(next * 100) / 100;
+  state.points.push({ v: state.delivered, pH: computePH(state.delivered) });
+  dripAnim();
+  updateUI();
+}
+
+function reset() {
+  state.delivered = 0;
+  state.points = [{ v: 0, pH: computePH(0) }];
+  updateUI();
+}
+
+document.getElementById("btnReset").onclick = reset;
+document.getElementById("btnDrop").onclick = () => addVolume(0.05);
+document.getElementById("btnOne").onclick = () => addVolume(1);
+document.getElementById("btnCustom").onclick = () => {
+  const v = parseFloat(document.getElementById("customVol").value) || 0.5;
+  addVolume(v);
+};
+["analyte","titrant","cA","vA","cT","indicator"].forEach(id => {
+  document.getElementById(id).addEventListener("change", reset);
+});
+document.getElementById("btnRun").onclick = () => {
+  const step = 0.25;
+  const tick = () => {
+    if (state.delivered >= 50) return;
+    addVolume(step);
+    if (state.delivered < 50) setTimeout(tick, 30);
+  };
+  tick();
+};
+
+reset();
+</script>
+</body>
+</html>
